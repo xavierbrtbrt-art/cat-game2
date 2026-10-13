@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cat Name Picker - Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky:#52b9ff;
+  --ink:#12305e;
+  --title-shadow:#1766b5;
+  --yellow:#ffd84a;
+  --heart:#e8222a;
+  --soft:#bcd6ff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0}
+[hidden]{display:none !important}
+body{
+  min-height:100%;
+  background:var(--sky);
+  color:#fff;
+  font-family:'Press Start 2P',ui-monospace,Menlo,Consolas,monospace;
+  -webkit-font-smoothing:none;
+}
+#bg{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:0}
+#cats{position:fixed;inset:0;z-index:1;pointer-events:none}
+.cat{position:absolute;pointer-events:auto;cursor:pointer;width:calc(var(--s) * 16);height:calc(var(--s) * 16)}
+.cat canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.cat.flip canvas{transform:scaleX(-1)}
+.hop{animation:hop .45s steps(6)}
+@keyframes hop{
+  0%,100%{transform:translateY(0)}
+  35%,65%{transform:translateY(calc(var(--s) * -6))}
+}
+
+main{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;align-items:center;gap:24px;
+  min-height:100svh;
+  padding:24px 16px 38vh;
+}
+
+.px{
+  background:var(--ink);
+  margin:4px;
+  box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff;
+}
+.topbar{
+  width:min(560px,calc(100vw - 48px));
+  padding:12px 14px;
+  display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
+  font-size:.62rem;
+}
+.chip{
+  display:inline-block;background:#0a1d3b;
+  box-shadow:inset 0 0 0 3px #3b66a8;
+  padding:7px 10px;font-size:.62rem;line-height:1.4;overflow-wrap:anywhere;
+}
+.chip.admin{color:var(--yellow)}
+
+.hearts{display:flex;gap:10px}
+.hearts canvas{width:40px;height:36px;image-rendering:pixelated;display:block}
+.hearts canvas.hop{--s:4px}
+
+h1{
+  margin:0;text-align:center;font-weight:400;
+  font-size:clamp(2.2rem,11vw,5.4rem);line-height:1.18;
+  text-shadow:4px 4px 0 var(--title-shadow);
+}
+h1 span{display:block}
+.round{font-size:.72rem;min-height:1em;text-shadow:3px 3px 0 var(--title-shadow)}
+
+.result{
+  width:min(560px,calc(100vw - 48px));
+  min-height:132px;padding:18px;
+  display:flex;align-items:center;justify-content:center;gap:20px;text-align:center;
+}
+.result canvas{width:96px;height:96px;image-rendering:pixelated;flex:none}
+.result-text{font-size:clamp(1rem,4.4vw,1.9rem);line-height:1.5;overflow-wrap:anywhere;min-width:0}
+.result-text.idle{font-size:clamp(.7rem,2.6vw,.95rem);line-height:1.9;color:var(--soft)}
+.result-text.win{color:var(--yellow)}
+.result-text.long{font-size:clamp(.8rem,3.2vw,1.3rem)}
+
+.start{
+  font:inherit;font-size:clamp(.85rem,2.8vw,1.15rem);
+  color:#fff;background:var(--heart);
+  border:0;margin:4px;padding:18px 26px;cursor:pointer;
+  box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -6px 0 #a81119;
+  text-shadow:3px 3px 0 #7a0d16;
+}
+.start:hover:not(:disabled){background:#ff3b43}
+.start:active:not(:disabled){transform:translateY(4px)}
+.start:disabled{background:#7d8aa3;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -6px 0 #5b6781;cursor:default;text-shadow:3px 3px 0 #44506a}
+:focus-visible{outline:4px dashed var(--yellow);outline-offset:8px}
+
+.panel{
+  width:min(560px,calc(100vw - 48px));
+  padding:20px;display:flex;flex-direction:column;gap:14px;
+}
+.grid{display:grid;grid-template-columns:1fr;gap:28px;width:min(960px,calc(100vw - 48px));align-items:start}
+.grid .panel{width:auto}
+@media (min-width:820px){.grid.two{grid-template-columns:1fr 1fr}}
+.panel .title{font-size:.72rem;line-height:1.8}
+textarea,input[type=text]{
+  width:100%;font:inherit;font-size:.75rem;line-height:2;
+  color:#fff;background:#0a1d3b;border:0;margin:0;padding:12px;
+  box-shadow:inset 0 0 0 4px #3b66a8;
+}
+textarea{min-height:170px;resize:vertical}
+textarea.short{min-height:96px}
+textarea::placeholder,input::placeholder{color:#7f9bc7}
+.meta{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:space-between;font-size:.62rem;line-height:1.8}
+.opt{display:flex;align-items:center;gap:10px;cursor:pointer}
+.opt input{width:20px;height:20px;accent-color:var(--heart);margin:0;cursor:pointer}
+.link{
+  font:inherit;font-size:.62rem;color:var(--soft);background:none;border:0;padding:6px 0;cursor:pointer;
+  text-decoration:underline;text-underline-offset:4px;
+}
+.link:hover{color:#fff}
+.note{font-size:.62rem;line-height:2;color:var(--soft);overflow-wrap:anywhere}
+.note b{font-weight:400;color:var(--yellow)}
+.list{display:flex;flex-direction:column;gap:10px;font-size:.66rem;line-height:1.8}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.row .nm{min-width:0;overflow-wrap:anywhere}
+.row .txt{color:var(--soft)}
+.pts{color:var(--yellow);flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.qa{
+  width:min(560px,calc(100vw - 48px));padding:20px;
+  display:flex;flex-direction:column;gap:14px;text-align:center;
+}
+.qa-who{font-size:.7rem;line-height:1.8;color:var(--yellow)}
+.qa-q{font-size:clamp(.85rem,3.4vw,1.2rem);line-height:1.7;overflow-wrap:anywhere}
+.qa-a{font-size:clamp(.75rem,3vw,1rem);line-height:1.7;color:#9dffb0;overflow-wrap:anywhere}
+.qa-msg{font-size:.75rem;line-height:1.8;color:var(--yellow)}
+.qa-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.sm{
+  font:inherit;font-size:.7rem;color:#fff;background:#2f6fd0;
+  border:0;margin:4px;padding:12px 16px;cursor:pointer;
+  box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -4px 0 #1b4a96;
+}
+.sm.ok{background:#2fa84f;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -4px 0 #1d7a37}
+.sm.no{background:#d9822b;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -4px 0 #a45d14}
+.sm.tiny{font-size:.58rem;padding:8px 10px;margin:2px}
+.sm:hover:not(:disabled){filter:brightness(1.12)}
+.sm:active:not(:disabled){transform:translateY(4px)}
+.sm:disabled{background:#7d8aa3;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -4px 0 #5b6781;cursor:default}
+.youtag{color:var(--yellow);font-size:.75rem;line-height:1.8}
+
+@media (max-width:480px){
+  .result{flex-direction:column;gap:12px;padding:16px 12px}
+  .panel,.qa{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){.hop{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div id="cats" aria-hidden="true"></div>
+
+<main>
+  <div class="topbar px">
+    <span class="chip" id="roleChip">CONNECTING</span>
+    <button class="link" id="viewToggle" type="button" hidden></button>
+    <label class="opt"><input type="checkbox" id="soundOpt" checked> Sound</label>
+  </div>
+
+  <div class="hearts" id="hearts" aria-hidden="true"></div>
+  <h1><span>NAME</span><span>PICKER</span></h1>
+  <div class="round" id="roundLabel"></div>
+
+  <div class="result px">
+    <canvas id="winCat" width="16" height="16" hidden aria-hidden="true"></canvas>
+    <div class="result-text idle" id="resultText">Connecting...</div>
+  </div>
+
+  <section class="qa px" id="qa" aria-label="Question" hidden>
+    <div class="qa-who" id="qaWho"></div>
+    <div class="qa-q" id="qaQ"></div>
+    <div class="qa-a" id="qaA" hidden></div>
+    <div class="qa-msg" id="qaMsg" hidden></div>
+    <div class="qa-btns" id="qaBtns" hidden>
+      <button class="sm" id="showAns" type="button">SHOW ANSWER</button>
+      <button class="sm ok" id="markRight" type="button">CORRECT</button>
+      <button class="sm no" id="markWrong" type="button">NOT YET</button>
+    </div>
+  </section>
+
+  <button class="start" id="startBtn" type="button" hidden>PRESS TO START</button>
+
+  <!-- player: join and answer -->
+  <section class="panel px" id="playerBox" aria-label="Your seat" hidden>
+    <div id="joinRow" class="list">
+      <label class="title" for="nick">Your name</label>
+      <input type="text" id="nick" maxlength="24" autocomplete="off" placeholder="Type your name">
+      <div><button class="sm" id="joinBtn" type="button">JOIN GAME</button></div>
+    </div>
+    <div id="joinedRow" class="list" hidden>
+      <div class="youtag" id="pbStatus"></div>
+      <div id="answerRow" class="list" hidden>
+        <label class="title" for="ans">Your answer</label>
+        <textarea class="short" id="ans" maxlength="300" placeholder="Type your answer"></textarea>
+        <div class="meta"><button class="sm ok" id="sendBtn" type="button">SEND ANSWER</button><span id="sentMsg"></span></div>
+      </div>
+      <div><button class="link" id="leaveBtn" type="button">Leave game</button></div>
+    </div>
+    <div class="note" id="pbNote"></div>
+  </section>
+
+  <!-- admin: answers this round -->
+  <section class="panel px" id="answersPanel" aria-label="Answers this round" hidden>
+    <div class="title">Answers this round</div>
+    <div class="list" id="answersList"></div>
+  </section>
+
+  <!-- admin: setup -->
+  <div class="grid two" id="configGrid" hidden>
+    <section class="panel px" aria-label="Names">
+      <label class="title" for="names">Names (one per line)</label>
+      <textarea id="names" spellcheck="false" autocomplete="off" placeholder="Type or paste names here"></textarea>
+      <div class="meta">
+        <span id="poolCount">0 in the pool</span>
+        <label class="opt"><input type="checkbox" id="joinedOpt" checked> Include joined players</label>
+        <label class="opt"><input type="checkbox" id="removeOpt"> Remove picked names</label>
+      </div>
+      <div><button class="link" id="refillBtn" type="button">Refill picked names</button></div>
+    </section>
+    <section class="panel px" aria-label="Questions">
+      <label class="title" for="questions">Questions (question | answer)</label>
+      <textarea id="questions" spellcheck="false" autocomplete="off" placeholder="One per line. Add | then the answer, or leave the answer out."></textarea>
+      <div class="meta">
+        <span id="qCount">0 questions</span>
+        <label class="opt"><input type="checkbox" id="askOpt" checked> Ask after each pick</label>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid two" id="infoGrid">
+    <section class="panel px" aria-label="Players">
+      <div class="title" id="playersTitle">Players</div>
+      <div class="list" id="playersList"></div>
+    </section>
+    <section class="panel px" aria-label="Scores">
+      <div class="title">Scores</div>
+      <div class="list" id="scoresList"></div>
+      <div><button class="link" id="clearScores" type="button" hidden>Clear scores</button></div>
+    </section>
+  </div>
+
+  <section class="panel px" id="sharePanel" aria-label="Host notes" hidden>
+    <div class="title">Host notes</div>
+    <div class="note">Players open this page's link and press JOIN GAME. They need Contributor access to join. People with view-only access can watch the screen but cannot join or answer.</div>
+    <div class="meta">
+      <button class="link" id="resetRound" type="button">Reset the round</button>
+    </div>
+  </section>
+
+  <section class="panel px" id="noticePanel" hidden>
+    <div class="note" id="notice"></div>
+  </section>
+
+  <div class="sr" id="live" aria-live="polite"></div>
+</main>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- helpers ---------- */
+  function randInt(n){
+    var a = new Uint32Array(1);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    return a[0] % n;
+  }
+  function shuffle(arr){
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--){ var j = randInt(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  /* ---------- cat sprites ---------- */
+  var BASE = [
+    "..OO........OO..",
+    ".OBPO......OPBO.",
+    ".OBPBOOOOOOBPBO.",
+    ".OBBBBBBBBBBBBO.",
+    "OBBBBBBBBBBBBBBO",
+    "OBBEKBBBBBBKEBBO",
+    "OBBEEBBBBBBEEBBO",
+    ".OBBBBBNNBBBBBO.",
+    ".OBBBBLLLLBBBBO.",
+    "..OOBBBBBBBBOO..",
+    ".OBBBLLLLLLBBBO.",
+    "OBBBLLLLLLLLBBBO",
+    "OBBBLLLLLLLLBBBO",
+    "OBBBLLLLLLLLBBBO",
+    "OBBBBLLLLLLBBBBO",
+    ".OOOOOOOOOOOOOO."
+  ];
+  var DEF = {K:'#1b1b22', N:'#f08a9b', P:'#f4a6b6', D:'#3b3b44', W:'#ffffff'};
+  var TABBY = [[4,3],[7,3],[8,3],[11,3],[1,5],[14,5],[2,11],[13,11],[1,12],[14,12],[2,13],[13,13]];
+  var CATS = [
+    {c:{O:'#3b3f4e',B:'#b9bcc4',L:'#eceef2',S:'#7d8190',E:'#7ed957'}, marks:TABBY},
+    {c:{O:'#6a3410',B:'#f0923a',L:'#fff1dc',S:'#cf6a1c',E:'#7ed957'}, marks:TABBY},
+    {c:{O:'#0e0e14',B:'#35353f',L:'#4c4c58',E:'#f5c542',N:'#c06c84',P:'#6b4a5a'}, marks:[]},
+    {c:{O:'#8a8fb0',B:'#fbfbff',L:'#e9edf7',E:'#4aa3ff'}, marks:[]},
+    {c:{O:'#4a3a33',B:'#fffaf0',L:'#ffffff',S:'#f0923a',D:'#3b3b44',E:'#f5c542'},
+      marks:[[2,3,'S'],[3,3,'S'],[2,4,'S'],[3,4,'S'],[1,5,'S'],[11,3,'D'],[12,4,'D'],[13,4,'D'],[13,5,'D'],
+             [1,11,'S'],[2,11,'S'],[1,12,'S'],[2,12,'S'],[3,12,'S'],[13,12,'D'],[14,12,'D'],[13,13,'D'],[14,13,'D'],[12,13,'D']]},
+    {c:{O:'#5a3f33',B:'#f3e3c8',L:'#fff6e6',S:'#6b4a3a',E:'#4aa3ff'},
+      marks:[[2,1],[13,1],[2,2],[4,2],[11,2],[13,2],[5,7],[6,7],[9,7],[10,7],[6,8],[7,8],[8,8],[9,8]]},
+    {c:{O:'#14141a',B:'#2e2e3a',L:'#ffffff',E:'#7ed957'},
+      marks:[[7,3,'W'],[8,3,'W'],[7,4,'W'],[8,4,'W'],[7,5,'W'],[8,5,'W'],[7,6,'W'],[8,6,'W']]},
+    {c:{O:'#3a4a5c',B:'#8fa3b8',L:'#dde7f0',S:'#5f7389',E:'#f2c94c'}, marks:TABBY},
+    {c:{O:'#4a2e18',B:'#c4905a',L:'#f1dcc0',S:'#8a5a32',E:'#7ed957'}, marks:TABBY},
+    {c:{O:'#8a5a3a',B:'#f6d9b0',L:'#fff3e0',S:'#e8b27a',E:'#3fc1b0'}, marks:TABBY}
+  ];
+  function sprite(cat, target){
+    var c = target || document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    var x = c.getContext('2d');
+    x.clearRect(0, 0, 16, 16);
+    var g = BASE.map(function(r){ return r.split(''); });
+    (cat.marks || []).forEach(function(m){ g[m[1]][m[0]] = m[2] || 'S'; });
+    var pal = {};
+    Object.keys(DEF).forEach(function(k){ pal[k] = DEF[k]; });
+    Object.keys(cat.c).forEach(function(k){ pal[k] = cat.c[k]; });
+    g.forEach(function(row, y){
+      row.forEach(function(k, xx){ if (k !== '.'){ x.fillStyle = pal[k]; x.fillRect(xx, y, 1, 1); } });
+    });
+    return c;
+  }
+
+  /* ---------- hearts ---------- */
+  var HEART = [".XX.XX.","XXXXXXX","XXXXXXX",".XXXXX.","..XXX..","...X..."];
+  function heartCanvas(){
+    var c = document.createElement('canvas');
+    c.width = 9; c.height = 8;
+    var x = c.getContext('2d'), cells = [];
+    HEART.forEach(function(row, y){ row.split('').forEach(function(k, xx){ if (k === 'X') cells.push([xx + 1, y + 1]); }); });
+    x.fillStyle = '#7a0d16';
+    cells.forEach(function(p){ for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) x.fillRect(p[0] + dx, p[1] + dy, 1, 1); });
+    x.fillStyle = '#e8222a';
+    cells.forEach(function(p){ x.fillRect(p[0], p[1], 1, 1); });
+    x.fillStyle = '#ff8a8a'; x.fillRect(2, 2, 1, 1); x.fillRect(2, 3, 1, 1);
+    return c;
+  }
+  var heartsEl = $('hearts');
+  for (var hi = 0; hi < 3; hi++) heartsEl.appendChild(heartCanvas());
+
+  /* ---------- background ---------- */
+  var bg = $('bg'), H = 108, W = 192;
+  function front(u){ return H * (0.20 + 0.05 * Math.sin(u * 6.0 + 1.2) + 0.025 * Math.sin(u * 13 + 0.5)); }
+  function back(u){ return H * (0.31 + 0.05 * Math.sin(u * 4.0 + 3) + 0.02 * Math.sin(u * 9)); }
+  var CLOUDS = [
+    {u:.12, v:.20, k:1.0, c:[[-14,2,7],[-6,-3,10],[6,-1,9],[15,3,7],[0,4,8]]},
+    {u:.84, v:.30, k:1.2, c:[[-15,3,7],[-5,-2,10],[7,-4,11],[17,2,8],[2,5,9]]},
+    {u:.52, v:.08, k:.7,  c:[[-12,2,6],[-3,-2,8],[8,0,8],[14,3,5]]},
+    {u:.06, v:.62, k:.8,  c:[[-12,2,6],[-3,-3,9],[8,-1,8],[15,3,6]]}
+  ];
+  function drawBg(){
+    H = 108;
+    W = Math.max(60, Math.round(H * window.innerWidth / window.innerHeight));
+    bg.width = W; bg.height = H;
+    var x = bg.getContext('2d');
+    x.fillStyle = '#52b9ff'; x.fillRect(0, 0, W, H);
+    var mask = new Uint8Array(W * H);
+    CLOUDS.forEach(function(cl){
+      var cx = cl.u * W, cy = cl.v * H;
+      cl.c.forEach(function(ci){
+        var px = cx + ci[0] * cl.k, py = cy + ci[1] * cl.k, r = ci[2] * cl.k;
+        for (var yy = Math.floor(py - r); yy <= Math.ceil(py + r); yy++){
+          for (var xx = Math.floor(px - r); xx <= Math.ceil(px + r); xx++){
+            if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+            var dx = xx - px, dy = yy - py;
+            if (dx * dx + dy * dy <= r * r) mask[yy * W + xx] = 1;
+          }
+        }
+      });
+    });
+    for (var yy = 0; yy < H; yy++){
+      for (var xx = 0; xx < W; xx++){
+        if (!mask[yy * W + xx]) continue;
+        var below = (yy + 2 < H) ? mask[(yy + 2) * W + xx] : 1;
+        x.fillStyle = below ? '#ffffff' : '#cfe3f8';
+        x.fillRect(xx, yy, 1, 1);
+      }
+    }
+    for (var xi = 0; xi < W; xi++){
+      var u = xi / W;
+      var bt = H - Math.round(back(u));
+      x.fillStyle = '#98d14e'; x.fillRect(xi, bt, 1, H - bt);
+      var ft = H - Math.round(front(u));
+      for (var y = ft; y < H; y++){
+        var d = y - ft, col;
+        if (d < 2) col = '#a8dc4c';
+        else if (d < 9) col = '#7bc23a';
+        else if (d < 12) col = ((xi + y) & 1) ? '#7bc23a' : '#62a82c';
+        else col = '#62a82c';
+        x.fillStyle = col; x.fillRect(xi, y, 1, 1);
+      }
+    }
+  }
+
+  var layer = $('cats');
+  var order = shuffle(CATS.map(function(_, i){ return i; }));
+  var catEls = [];
+  function layoutCats(){
+    layer.innerHTML = ''; catEls = [];
+    var s = Math.max(3, Math.round(window.innerHeight / 170));
+    var n = Math.max(3, Math.min(CATS.length, Math.floor(window.innerWidth / (16 * s * 1.25))));
+    for (var i = 0; i < n; i++){
+      var u = (i + 0.5) / n + (((i * 7919) % 13) - 6) / 13 * 0.15 / n;
+      var e = el('div', 'cat' + (i % 2 ? ' flip' : ''));
+      e.style.setProperty('--s', s + 'px');
+      e.style.left = 'calc(' + (u * 100).toFixed(2) + '% - ' + (8 * s) + 'px)';
+      e.style.bottom = Math.round(front(u) / H * window.innerHeight - s * 3) + 'px';
+      e.appendChild(sprite(CATS[order[i]]));
+      e.addEventListener('click', function(ev){ hop(ev.currentTarget); blip(520, .05); });
+      e.addEventListener('animationend', function(ev){ ev.currentTarget.classList.remove('hop'); });
+      layer.appendChild(e); catEls.push(e);
+    }
+  }
+  function hop(e){
+    if (!e || reduce) return;
+    e.classList.remove('hop'); void e.offsetWidth; e.classList.add('hop');
+  }
+  function randomCat(){ return catEls.length ? catEls[randInt(catEls.length)] : null; }
+  function wave(){ catEls.forEach(function(e, i){ setTimeout(function(){ hop(e); }, i * 90); }); }
+  function hearthop(){
+    Array.prototype.forEach.call(heartsEl.children, function(hc, i){ setTimeout(function(){ hop(hc); }, i * 120); });
+  }
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){ drawBg(); layoutCats(); }, 150);
+  });
+  drawBg(); layoutCats();
+
+  /* ---------- sound ---------- */
+  var ac, soundOpt = $('soundOpt');
+  function blip(freq, dur){
+    if (!soundOpt.checked) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = freq; g.gain.value = 0.035;
+      o.connect(g); g.connect(ac.destination);
+      o.start(); o.stop(ac.currentTime + (dur || 0.06));
+    } catch (e) {}
+  }
+  function jingle(){ [523, 659, 784, 1047].forEach(function(f, i){ setTimeout(function(){ blip(f, .12); }, i * 110); }); }
+
+  /* ---------- state ---------- */
+  var SAMPLE = 'Xavier\nMia\nLeo\nNora\nSam';
+  var SAMPLEQ = 'What sound does a cat make? | Meow\nWhat do cats love to chase? | Mice, or a laser dot\nWhat is a group of kittens called? | A litter\nWhat planet do we live on? | Earth\nName a food cats love. | Fish\nTell us your favorite animal and why.';
+  var DEFAULT_STATE = {phase:'idle', round:0, pool:[], picked:'', catIdx:0, q:'', hasAnswer:false, answer:'', showAnswer:false, verdict:'', awarded:[]};
+
+  var db = null, U = null;
+  var uid = null, isAdmin = false, viewAsPlayer = false, canJoin = true;
+  var S = Object.assign({}, DEFAULT_STATE);
+  var scores = {}, players = [], answers = [];
+  var cfg = {names:SAMPLE, questions:SAMPLEQ, useJoined:true, remove:false, ask:true, done:[]};
+  var curAnswer = '', qBag = [], busy = false;
+  var myName = '', myJoined = false, defaultNick = '', lastRound = -1;
+  var firstRender = true, prev = {round:-1, phase:'', verdict:''};
+  var spinTimer = null, spinTick = 0;
+
+  function adminView(){ return isAdmin && !viewAsPlayer; }
+
+  /* ---------- writes (one at a time per document) ---------- */
+  var chains = {};
+  function write(path, data){
+    chains[path] = (chains[path] || Promise.resolve()).then(function(){
+      return db.doc(path).set(data);
+    }).catch(function(e){ notice('Could not save (' + (e && e.code || 'error') + '). Reload the page if this keeps happening.'); });
+    return chains[path];
+  }
+  function notice(msg){
+    $('notice').textContent = msg;
+    $('noticePanel').hidden = !msg;
+  }
+  function say(msg){ $('live').textContent = msg; }
+  function setState(patch){
+    S = Object.assign({}, S, patch);
+    renderAll();
+    return write('game/state', S);
+  }
+
+  /* ---------- result + stage ---------- */
+  var resultText = $('resultText'), winCat = $('winCat');
+  function setResult(text, cls){
+    resultText.textContent = text;
+    resultText.className = 'result-text ' + (cls || '') + ((cls === 'win' || cls === 'spin') && text.length > 14 ? ' long' : '');
+  }
+
+  function renderStage(){
+    $('roundLabel').textContent = S.round ? 'ROUND ' + S.round : '';
+    var spinning = S.phase === 'spinning';
+    if (spinning){
+      winCat.hidden = true;
+      if (!spinTimer){
+        spinTick = 0;
+        spinTimer = setInterval(function(){
+          var p = (S.pool && S.pool.length) ? S.pool : ['...'];
+          setResult(p[randInt(p.length)], '');
+          if (++spinTick % 3 === 0) blip(300 + (spinTick % 6) * 60, .04);
+        }, reduce ? 700 : 90);
+      }
+    } else {
+      if (spinTimer){ clearInterval(spinTimer); spinTimer = null; }
+      if (!S.picked){
+        winCat.hidden = true;
+        setResult(adminView() ? 'Press start to pick a name' : 'Waiting for the host to pick a name', 'idle');
+      } else {
+        setResult(S.picked, 'win');
+        sprite(CATS[(S.catIdx || 0) % CATS.length], winCat);
+        winCat.hidden = false;
+      }
+    }
+
+    var showQ = !!S.q && !spinning;
+    $('qa').hidden = !showQ;
+    if (showQ){
+      $('qaWho').textContent = S.picked + ', your question:';
+      $('qaQ').textContent = S.q;
+      $('qaA').hidden = !S.showAnswer;
+      $('qaA').textContent = 'Answer: ' + (S.answer || '');
+      var vm = S.verdict === 'correct' ? 'Correct! +1 for ' + S.picked : (S.verdict === 'wrong' ? 'Good try, ' + S.picked + '!' : '');
+      $('qaMsg').hidden = !vm;
+      $('qaMsg').textContent = vm;
+    }
+
+    // sounds and cat reactions on changes, never on first load
+    if (!firstRender){
+      if ((prev.round !== S.round || prev.phase !== S.phase) && (S.phase === 'question' || S.phase === 'picked')){
+        jingle(); wave();
+      }
+      if (prev.verdict !== S.verdict){
+        if (S.verdict === 'correct'){ jingle(); wave(); hearthop(); }
+        else if (S.verdict === 'wrong'){ blip(200, .25); }
+      }
+      if (prev.phase !== S.phase || prev.verdict !== S.verdict){
+        if (S.phase === 'question') say(S.picked + ' was picked. Question: ' + S.q);
+        else if (S.phase === 'picked') say(S.picked + ' was picked.');
+      }
+    }
+    prev = {round:S.round, phase:S.phase, verdict:S.verdict};
+    firstRender = false;
+  }
+
+  /* ---------- admin controls ---------- */
+  function computePool(){
+    var typed = cfg.names.split(/[\n,]/).map(function(s){ return s.trim(); }).filter(Boolean);
+    var joined = cfg.useJoined ? players.map(function(p){ return p.name; }) : [];
+    var seen = {}, out = [];
+    typed.concat(joined).forEach(function(n){
+      var k = n.toLowerCase();
+      if (!seen[k]){ seen[k] = 1; out.push(n); }
+    });
+    if (!cfg.remove) return out;
+    var done = {};
+    (cfg.done || []).forEach(function(n){ done[n.toLowerCase()] = 1; });
+    return out.filter(function(n){ return !done[n.toLowerCase()]; });
+  }
+  function getQuestions(){
+    return cfg.questions.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).map(function(l){
+      var i = l.indexOf('|');
+      return i < 0 ? {q:l, a:''} : {q:l.slice(0, i).trim(), a:l.slice(i + 1).trim()};
+    }).filter(function(x){ return x.q; });
+  }
+  function nextQuestion(){
+    var all = getQuestions();
+    if (!all.length) return null;
+    qBag = qBag.filter(function(x){ return all.some(function(y){ return y.q === x.q; }); });
+    if (!qBag.length) qBag = shuffle(all);
+    return qBag.pop();
+  }
+  var cfgTimer;
+  function saveCfg(){
+    clearTimeout(cfgTimer);
+    cfgTimer = setTimeout(function(){ write('admin/config', cfg); }, 600);
+  }
+
+  async function doPick(){
+    if (busy || !isAdmin) return;
+    var pool = computePool();
+    if (!pool.length){ notice('No names to pick from. Add names or wait for players to join.'); return; }
+    notice('');
+    busy = true; renderAdmin();
+    try {
+      var round = (S.round || 0) + 1;
+      await setState({phase:'spinning', round:round, pool:pool, picked:'', q:'', hasAnswer:false, answer:'', showAnswer:false, verdict:'', awarded:[]});
+      await sleep(reduce ? 400 : 2800);
+      var winner = pool[randInt(pool.length)];
+      var q = cfg.ask ? nextQuestion() : null;
+      curAnswer = q ? q.a : '';
+      write('admin/current', {answer:curAnswer, round:round});
+      await setState({phase: q ? 'question' : 'picked', picked:winner, catIdx:randInt(CATS.length), q: q ? q.q : '', hasAnswer: !!(q && q.a)});
+      if (cfg.remove){
+        cfg.done = (cfg.done || []).concat([winner]);
+        saveCfg();
+      }
+    } finally {
+      busy = false; renderAdmin();
+    }
+  }
+  function award(name){
+    var k = name;
+    scores[k] = (scores[k] || 0) + 1;
+    write('game/scores', {scores:scores});
+    renderScores();
+  }
+  $('startBtn').addEventListener('click', doPick);
+  $('showAns').addEventListener('click', function(){
+    if (!isAdmin || !S.q) return;
+    setState({showAnswer:true, answer:curAnswer});
+  });
+  $('markRight').addEventListener('click', function(){
+    if (!isAdmin || !S.q || S.verdict) return;
+    award(S.picked);
+    setState({verdict:'correct', awarded:(S.awarded || []).concat([S.picked])});
+  });
+  $('markWrong').addEventListener('click', function(){
+    if (!isAdmin || !S.q || S.verdict) return;
+    setState({verdict:'wrong'});
+  });
+  $('resetRound').addEventListener('click', function(){
+    if (!isAdmin) return;
+    busy = false;
+    setState(Object.assign({}, DEFAULT_STATE, {round:S.round}));
+  });
+  $('clearScores').addEventListener('click', function(){
+    if (!isAdmin) return;
+    scores = {}; write('game/scores', {scores:scores}); renderScores();
+  });
+  $('refillBtn').addEventListener('click', function(){ cfg.done = []; saveCfg(); renderAdmin(); });
+
+  var namesTa = $('names'), qTa = $('questions');
+  namesTa.addEventListener('input', function(){ cfg.names = namesTa.value; saveCfg(); renderAdmin(); });
+  qTa.addEventListener('input', function(){ cfg.questions = qTa.value; saveCfg(); renderAdmin(); });
+  $('joinedOpt').addEventListener('change', function(e){ cfg.useJoined = e.target.checked; saveCfg(); renderAdmin(); });
+  $('removeOpt').addEventListener('change', function(e){ cfg.remove = e.target.checked; saveCfg(); renderAdmin(); });
+  $('askOpt').addEventListener('change', function(e){ cfg.ask = e.target.checked; saveCfg(); });
+
+  function renderAdmin(){
+    var on = adminView();
+    $('startBtn').hidden = !on;
+    $('configGrid').hidden = !on;
+    $('answersPanel').hidden = !on;
+    $('sharePanel').hidden = !on;
+    $('qaBtns').hidden = true;
+    if (!on) return;
+
+    var start = $('startBtn');
+    start.disabled = busy || S.phase === 'spinning';
+    start.textContent = S.round ? 'PICK AGAIN' : 'PRESS TO START';
+    $('poolCount').textContent = computePool().length + ' in the pool';
+    var nq = getQuestions().length;
+    $('qCount').textContent = nq + (nq === 1 ? ' question' : ' questions');
+
+    var hasQ = !!S.q && S.phase !== 'spinning' && !S.verdict;
+    var needReveal = hasQ && S.hasAnswer && !S.showAnswer;
+    $('qaBtns').hidden = !hasQ;
+    $('showAns').hidden = !needReveal;
+    $('markRight').hidden = needReveal;
+    $('markWrong').hidden = needReveal;
+    renderAnswers();
+  }
+  function renderAnswers(){
+    var list = $('answersList');
+    list.innerHTML = '';
+    var rows = answers.filter(function(a){ return a.round === S.round; });
+    rows.sort(function(a, b){
+      var ap = a.name.toLowerCase() === (S.picked || '').toLowerCase() ? 0 : 1;
+      var bp = b.name.toLowerCase() === (S.picked || '').toLowerCase() ? 0 : 1;
+      return ap - bp || (a.at || 0) - (b.at || 0);
+    });
+    if (!rows.length){
+      list.appendChild(el('div', 'note', 'No answers yet. Players can send theirs while a question is open.'));
+      return;
+    }
+    rows.forEach(function(a){
+      var row = el('div', 'row');
+      var left = el('div', 'nm');
+      left.appendChild(el('b', '', a.name + ': '));
+      left.appendChild(el('span', 'txt', a.text));
+      row.appendChild(left);
+      var given = (S.awarded || []).indexOf(a.name) >= 0;
+      var btn = el('button', 'sm ok tiny', given ? 'GIVEN' : '+1');
+      btn.type = 'button';
+      btn.disabled = given;
+      btn.setAttribute('aria-label', 'Give a point to ' + a.name);
+      btn.addEventListener('click', function(){
+        award(a.name);
+        setState({awarded:(S.awarded || []).concat([a.name])});
+        jingle();
+      });
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
+  /* ---------- players ---------- */
+  function renderPlayers(){
+    var list = $('playersList');
+    list.innerHTML = '';
+    $('playersTitle').textContent = 'Players (' + players.length + ')';
+    if (!players.length){
+      list.appendChild(el('div', 'note', adminView() ? 'Nobody has joined yet.' : 'Nobody has joined yet. Be the first!'));
+      return;
+    }
+    players.forEach(function(p){
+      var row = el('div', 'row');
+      row.appendChild(el('div', 'nm', p.name + (p.id === uid ? ' (you)' : '')));
+      if (adminView()){
+        var k = el('button', 'sm no tiny', 'REMOVE');
+        k.type = 'button';
+        k.setAttribute('aria-label', 'Remove ' + p.name);
+        k.addEventListener('click', function(){
+          db.doc('players/' + p.id).delete().catch(function(){ notice('Could not remove that player.'); });
+        });
+        row.appendChild(k);
+      }
+      list.appendChild(row);
+    });
+  }
+  function renderScores(){
+    var list = $('scoresList');
+    list.innerHTML = '';
+    var keys = Object.keys(scores).filter(function(k){ return scores[k] > 0; })
+      .sort(function(a, b){ return scores[b] - scores[a]; }).slice(0, 12);
+    $('clearScores').hidden = !(adminView() && keys.length);
+    if (!keys.length){ list.appendChild(el('div', 'note', 'No points yet.')); return; }
+    keys.forEach(function(k){
+      var row = el('div', 'row');
+      row.appendChild(el('div', 'nm', k));
+      row.appendChild(el('div', 'pts', String(scores[k])));
+      list.appendChild(row);
+    });
+  }
+
+  /* ---------- player box ---------- */
+  var nick = $('nick'), ans = $('ans');
+  function renderPlayerBox(){
+    var show = !adminView();
+    $('playerBox').hidden = !show;
+    if (!show) return;
+    var joined = myJoined;
+    $('joinRow').hidden = joined || !canJoin;
+    $('joinedRow').hidden = !joined;
+    var note = '';
+    if (!joined && !canJoin) note = 'You can watch the game here, but this link does not allow joining. Ask the host for Contributor access.';
+    $('pbNote').textContent = note;
+    if (!joined) return;
+
+    var mine = (S.picked || '').toLowerCase() === myName.toLowerCase();
+    var canAnswer = S.phase === 'question' && !!S.q && !S.showAnswer && !S.verdict;
+    $('pbStatus').textContent = (mine && S.phase !== 'spinning' && S.picked)
+      ? "It's you, " + myName + '! Answer the question.'
+      : 'Playing as ' + myName;
+    if (lastRound !== S.round){
+      lastRound = S.round;
+      ans.value = ''; $('sentMsg').textContent = '';
+    }
+    $('answerRow').hidden = !canAnswer;
+  }
+  $('joinBtn').addEventListener('click', async function(){
+    var name = nick.value.trim().slice(0, 24);
+    if (!name || !uid || !db) return;
+    try { await db.doc('players/' + uid).set({name:name, joinedAt:Date.now()}); }
+    catch (e){ canJoin = false; renderPlayerBox(); }
+  });
+  nick.addEventListener('keydown', function(e){ if (e.key === 'Enter') $('joinBtn').click(); });
+  $('leaveBtn').addEventListener('click', function(){
+    if (!uid) return;
+    db.doc('players/' + uid).delete().catch(function(){});
+  });
+  $('sendBtn').addEventListener('click', async function(){
+    var text = ans.value.trim().slice(0, 300);
+    if (!text || !myJoined || S.phase !== 'question') return;
+    try {
+      await db.doc('answers/' + uid).set({name:myName, text:text, round:S.round, at:Date.now()});
+      $('sentMsg').textContent = 'Sent! You can edit and send again.';
+      blip(660, .08);
+    } catch (e){
+      $('sentMsg').textContent = 'Could not send. Try again.';
+    }
+  });
+
+  /* ---------- top bar ---------- */
+  function renderTop(){
+    var chip = $('roleChip');
+    if (adminView()){ chip.textContent = 'ADMIN'; chip.className = 'chip admin'; }
+    else if (isAdmin){ chip.textContent = 'PLAYER PREVIEW'; chip.className = 'chip'; }
+    else { chip.textContent = myJoined ? 'PLAYER: ' + myName : 'PLAYER'; chip.className = 'chip'; }
+    var t = $('viewToggle');
+    t.hidden = !isAdmin;
+    t.textContent = viewAsPlayer ? 'Back to admin' : 'Preview as player';
+  }
+  $('viewToggle').addEventListener('click', function(){
+    viewAsPlayer = !viewAsPlayer;
+    renderAll();
+  });
+
+  function renderAll(){
+    renderTop();
+    renderStage();
+    renderAdmin();
+    renderPlayerBox();
+    renderPlayers();
+    renderScores();
+  }
+
+  /* ---------- connect ---------- */
+  async function init(){
+    var C = window.claude;
+    if (!C || !C.use){
+      setResult('Open this page from its claude.ai link to play.', 'idle');
+      $('roleChip').textContent = 'OFFLINE';
+      return;
+    }
+    try { db = await C.use('db'); } catch (e) { db = null; }
+    try { U = await C.use('user'); } catch (e) { U = null; }
+    if (!db){
+      setResult('Sign in to claude.ai and open this page from its link to play.', 'idle');
+      $('roleChip').textContent = 'OFFLINE';
+      return;
+    }
+    if (U){
+      try { isAdmin = !!(await U.canEdit()); } catch (e) {}
+      try { uid = await U.id(); } catch (e) {}
+      try { var me = await U.me(); defaultNick = (me && me.name) || ''; } catch (e) {}
+    }
+    if (!uid) canJoin = false;
+    nick.value = defaultNick;
+
+    function lost(){ notice('Lost the connection to the game. Reload the page.'); }
+
+    db.doc('game/state').onSnapshot(function(snap){
+      S = Object.assign({}, DEFAULT_STATE, snap.exists ? snap.data() : {});
+      if (!Array.isArray(S.pool)) S.pool = [];
+      if (!Array.isArray(S.awarded)) S.awarded = [];
+      renderAll();
+    }, lost);
+    db.doc('game/scores').onSnapshot(function(snap){
+      var d = snap.exists ? snap.data() : null;
+      scores = (d && d.scores && typeof d.scores === 'object') ? Object.assign({}, d.scores) : {};
+      renderScores();
+    }, lost);
+    db.collection('players').onSnapshot(function(snap){
+      players = snap.docs.map(function(d){
+        var v = d.data() || {};
+        return {id:d.id, name:String(v.name || 'Player'), joinedAt:v.joinedAt || 0};
+      }).sort(function(a, b){ return a.joinedAt - b.joinedAt; });
+      var mine = players.filter(function(p){ return p.id === uid; })[0];
+      myJoined = !!mine; myName = mine ? mine.name : '';
+      renderAll();
+    }, lost);
+
+    if (isAdmin){
+      try {
+        var c = await db.doc('admin/config').get();
+        if (c.exists){
+          var d = c.data();
+          cfg = Object.assign(cfg, d);
+          if (!Array.isArray(cfg.done)) cfg.done = [];
+        }
+        var cu = await db.doc('admin/current').get();
+        if (cu.exists && cu.data().round === S.round) curAnswer = cu.data().answer || '';
+      } catch (e) {}
+      namesTa.value = cfg.names;
+      qTa.value = cfg.questions;
+      $('joinedOpt').checked = !!cfg.useJoined;
+      $('removeOpt').checked = !!cfg.remove;
+      $('askOpt').checked = cfg.ask !== false;
+      db.collection('answers').onSnapshot(function(snap){
+        answers = snap.docs.map(function(d){
+          var v = d.data() || {};
+          return {id:d.id, name:String(v.name || 'Player'), text:String(v.text || ''), round:v.round, at:v.at || 0};
+        });
+        renderAnswers();
+      }, function(){});
+    }
+    renderAll();
+  }
+  renderTop();
+  init();
+})();
+</script>
+</body>
+</html>
