@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Name Picker - Multiplayer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky:#52b9ff;
+  --ink:#12305e;
+  --title-shadow:#1766b5;
+  --yellow:#ffd84a;
+  --heart:#e8222a;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--sky);color:#fff;font-family:'Press Start 2P',ui-monospace,monospace;-webkit-font-smoothing:none}
+#bg{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:0}
+#cats{position:fixed;inset:0;z-index:1;pointer-events:none}
+.cat{position:absolute;pointer-events:auto;cursor:pointer;width:calc(var(--s) * 16);height:calc(var(--s) * 16)}
+.cat canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.cat.flip canvas{transform:scaleX(-1)}
+.hop{animation:hop .45s steps(6)}
+@keyframes hop{0%,100%{transform:translateY(0)}35%,65%{transform:translateY(calc(var(--s) * -6))}}
+
+main{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:18px;min-height:100svh;padding:20px 16px 34vh}
+.hearts{display:flex;gap:10px}
+.hearts canvas{width:40px;height:36px;image-rendering:pixelated;display:block}
+
+h1{margin:4px 0 0;text-align:center;font-weight:400;font-size:clamp(1.8rem,8vw,4rem);line-height:1.18;text-shadow:4px 4px 0 var(--title-shadow)}
+h1 span{display:block}
+
+.badge{font-size:.65rem;background:var(--ink);padding:8px 12px;box-shadow:0 -2px 0 #fff,0 2px 0 #fff,-2px 0 0 #fff,2px 0 0 #fff;color:var(--yellow);text-transform:uppercase;margin-top:-6px;text-align:center;word-break:break-all;max-width:90vw}
+
+.px{background:var(--ink);margin:4px;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff}
+
+.result{width:min(560px,calc(100vw - 48px));min-height:120px;padding:18px;display:flex;align-items:center;justify-content:center;gap:20px;text-align:center}
+.result canvas{width:80px;height:80px;image-rendering:pixelated;flex:none}
+.result-text{font-size:clamp(.9rem,4vw,1.6rem);line-height:1.5;overflow-wrap:anywhere}
+.result-text.idle{font-size:clamp(.65rem,2.5vw,.85rem);color:#bcd6ff;line-height:1.8}
+.result-text.win{color:var(--yellow)}
+
+.btn{font:inherit;font-size:clamp(.75rem,2.5vw,1rem);color:#fff;background:var(--heart);border:0;margin:4px;padding:14px 20px;cursor:pointer;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -5px 0 #a81119;text-shadow:2px 2px 0 #7a0d16}
+.btn:hover:not(:disabled){background:#ff3b43}
+.btn:active:not(:disabled){transform:translateY(3px)}
+.btn:disabled{background:#7d8aa3;box-shadow:0 -4px 0 #fff,0 4px 0 #fff,-4px 0 0 #fff,4px 0 0 #fff,inset 0 -5px 0 #5b6781;cursor:default}
+
+.panel{width:min(560px,calc(100vw - 48px));padding:18px;display:flex;flex-direction:column;gap:12px}
+.panel label.title{font-size:.7rem;line-height:1.6}
+input[type="text"],textarea{width:100%;font:inherit;font-size:.75rem;line-height:1.8;color:#fff;background:#0a1d3b;border:0;padding:10px;box-shadow:inset 0 0 0 3px #3b66a8}
+textarea{min-height:120px;resize:vertical}
+
+.qa{width:min(560px,calc(100vw - 48px));padding:18px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.qa-who{font-size:.7rem;color:var(--yellow);line-height:1.6}
+.qa-q{font-size:clamp(.8rem,3vw,1.1rem);line-height:1.6}
+.qa-a{font-size:clamp(.7rem,2.8vw,.95rem);color:#9dffb0}
+.qa-msg{font-size:.75rem;color:var(--yellow)}
+.qa-chosen-banner{font-size:clamp(1rem,4vw,1.5rem);color:var(--yellow);animation:pulse 1s infinite alternate}
+@keyframes pulse{from{transform:scale(0.98)}to{transform:scale(1.02)}}
+
+.sm{font:inherit;font-size:.65rem;color:#fff;background:#2f6fd0;border:0;padding:10px 12px;cursor:pointer;box-shadow:0 -3px 0 #fff,0 3px 0 #fff,-3px 0 0 #fff,3px 0 0 #fff,inset 0 -3px 0 #1b4a96}
+.sm.ok{background:#2fa84f;box-shadow:0 -3px 0 #fff,0 3px 0 #fff,-3px 0 0 #fff,3px 0 0 #fff,inset 0 -3px 0 #1d7a37}
+.sm.no{background:#d9822b;box-shadow:0 -3px 0 #fff,0 3px 0 #fff,-3px 0 0 #fff,3px 0 0 #fff,inset 0 -3px 0 #a45d14}
+
+.meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:.6rem}
+.history{font-size:.6rem;line-height:1.8;color:#bcd6ff;overflow-wrap:anywhere}
+.history b{font-weight:400;color:var(--yellow)}
+
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div id="cats" aria-hidden="true"></div>
+
+<main>
+  <div class="hearts" id="hearts" aria-hidden="true"></div>
+  <h1><span>NAME</span><span>PICKER</span></h1>
+  <div class="badge" id="roomBadge">Initializing...</div>
+
+  <!-- INITIAL ROOM ENTRY PANEL -->
+  <section class="panel px" id="entryPanel">
+    <label class="title">Select Mode to Begin</label>
+    <button class="btn" id="createRoomBtn" type="button">CREATE NEW GAME ROOM</button>
+    <div style="text-align:center;font-size:.6rem;margin:8px 0;">-- OR JOIN EXISTING --</div>
+    <input type="text" id="roomCodeInput" placeholder="Enter 4-Digit Room Code" maxlength="4">
+    <button class="sm" id="joinRoomBtn" type="button" style="margin-top:6px;">JOIN ROOM</button>
+  </section>
+
+  <!-- PLAYER REGISTRATION FORM -->
+  <section class="panel px" id="registerPanel" hidden>
+    <label class="title" for="playerNameInput">Enter Your Name to Play</label>
+    <input type="text" id="playerNameInput" placeholder="Your Name" maxlength="20">
+    <button class="btn" id="submitNameBtn" type="button">ENTER GAME</button>
+  </section>
+
+  <!-- MAIN RESULT DISPLAY -->
+  <div class="result px" id="resultBox" hidden>
+    <canvas id="winCat" width="16" height="16" hidden></canvas>
+    <div class="result-text idle" id="resultText">Waiting for Host...</div>
+  </div>
+
+  <button class="btn" id="startBtn" type="button" hidden>PRESS TO START</button>
+
+  <!-- QUESTION & ANSWER PANEL -->
+  <section class="qa px" id="qa" hidden>
+    <div class="qa-chosen-banner" id="chosenBanner" hidden>⭐ YOU HAVE BEEN CHOSEN! ⭐</div>
+    <div class="qa-who" id="qaWho"></div>
+    <div class="qa-q" id="qaQ"></div>
+    <div class="qa-a" id="qaA" hidden></div>
+    <div class="qa-msg" id="qaMsg" hidden></div>
+    <div class="qa-btns" id="qaBtns" hidden>
+      <button class="sm" id="showAns" type="button">SHOW ANSWER</button>
+      <button class="sm ok" id="markRight" type="button" hidden>CORRECT</button>
+      <button class="sm no" id="markWrong" type="button" hidden>NOT YET</button>
+    </div>
+  </section>
+
+  <!-- HOST CONTROLS -->
+  <section class="panel px" id="hostQuestionsPanel" hidden>
+    <label class="title" for="questions">Questions (Question | Answer)</label>
+    <textarea id="questions" spellcheck="false" placeholder="What is a group of kittens called? | A litter"></textarea>
+    <div class="meta">
+      <label><input type="checkbox" id="removeOpt"> Remove picked names</label>
+      <label><input type="checkbox" id="askOpt" checked> Ask questions</label>
+    </div>
+  </section>
+
+  <!-- LIVE SCORES & PLAYERS LIST -->
+  <section class="panel px" id="statusPanel" hidden>
+    <div class="history" id="playerListText"><b>Players:</b> None yet</div>
+    <div class="history" id="scoresText" style="margin-top:8px;"><b>Scores:</b> No scores</div>
+  </section>
+</main>
+
+<!-- FIREBASE SDK & GAME SCRIPT -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  // Updated with your specific Singapore Realtime Database URL
+  const firebaseConfig = {
+    databaseURL: "https://cat-game-e403e-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  /* ---------- APP STATE ---------- */
+  let roomId = null;
+  let isHost = false;
+  let myPlayerName = "";
+  let currentRoomData = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- DOM ELEMENTS ---------- */
+  const entryPanel = $('entryPanel');
+  const registerPanel = $('registerPanel');
+  const resultBox = $('resultBox');
+  const startBtn = $('startBtn');
+  const hostQuestionsPanel = $('hostQuestionsPanel');
+  const statusPanel = $('statusPanel');
+  const roomBadge = $('roomBadge');
+  const qa = $('qa');
+
+  /* ---------- URL & ROOM SETUP ---------- */
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room');
+
+  if (roomParam) {
+    roomId = roomParam.toUpperCase();
+    showPlayerRegistration();
+  } else {
+    roomBadge.textContent = "Select Mode";
+  }
+
+  $('createRoomBtn').addEventListener('click', () => {
+    roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+    isHost = true;
+    
+    // Initialize Room in Firebase
+    set(ref(db, 'rooms/' + roomId), {
+      created: Date.now(),
+      state: 'IDLE',
+      winner: '',
+      currentQuestion: '',
+      currentAnswer: '',
+      showAnswer: false,
+      qaMsg: '',
+      players: {},
+      scores: {},
+      questions: $('questions').value || "What sound does a cat make? | Meow\nWhat do cats love to chase? | Mice"
+    });
+
+    const shareUrl = window.location.origin + window.location.pathname + '?room=' + roomId;
+    roomBadge.innerHTML = `HOST ROOM: <b>${roomId}</b><br><span style="font-size:.5rem;color:#aaccff;">Share link with players: ${shareUrl}</span>`;
+    
+    entryPanel.hidden = true;
+    resultBox.hidden = false;
+    startBtn.hidden = false;
+    hostQuestionsPanel.hidden = false;
+    statusPanel.hidden = false;
+
+    listenToRoom();
+  });
+
+  $('joinRoomBtn').addEventListener('click', () => {
+    const code = $('roomCodeInput').value.trim().toUpperCase();
+    if (code.length === 4) {
+      roomId = code;
+      showPlayerRegistration();
+    }
+  });
+
+  function showPlayerRegistration() {
+    entryPanel.hidden = true;
+    registerPanel.hidden = false;
+    roomBadge.textContent = `JOINING ROOM: ${roomId}`;
+  }
+
+  $('submitNameBtn').addEventListener('click', () => {
+    const name = $('playerNameInput').value.trim();
+    if (!name) return;
+    myPlayerName = name;
+
+    // Register Player in Firebase
+    update(ref(db, `rooms/${roomId}/players`), { [name]: true });
+
+    registerPanel.hidden = true;
+    resultBox.hidden = false;
+    statusPanel.hidden = false;
+    roomBadge.textContent = `ROOM: ${roomId} | PLAYER: ${myPlayerName}`;
+
+    listenToRoom();
+  });
+
+  /* ---------- FIREBASE REALTIME SYNC ---------- */
+  function listenToRoom() {
+    onValue(ref(db, 'rooms/' + roomId), (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+      currentRoomData = data;
+
+      // Sync Players & Scores List
+      const playersList = data.players ? Object.keys(data.players) : [];
+      $('playerListText').innerHTML = `<b>Players (${playersList.length}):</b> ` + (playersList.join(', ') || 'None');
+
+      const scores = data.scores || {};
+      const scoreStr = Object.keys(scores).map(k => `${k}: ${scores[k]}`).join(', ');
+      $('scoresText').innerHTML = `<b>Scores:</b> ` + (scoreStr || '0');
+
+      // Sync Spinning / Result Display
+      if (data.state === 'SPINNING') {
+        $('resultText').textContent = data.currentName || 'Picking...';
+        $('resultText').className = 'result-text';$('winCat').hidden = true;
+        qa.hidden = true;
+      } else if (data.state === 'WINNER') {
+        $('resultText').textContent = data.winner;
+        $('resultText').className = 'result-text win';$('winCat').hidden = false;
+
+        // Display Question Panel
+        if (data.currentQuestion) {
+          qa.hidden = false;
+          $('qaWho').textContent = `${data.winner}, your question:`;
+          $('qaQ').textContent = data.currentQuestion;
+
+          // Check if THIS device belongs to the winner
+          if (myPlayerName && myPlayerName.toLowerCase() === data.winner.toLowerCase()) {
+            $('chosenBanner').hidden = false;
+          } else {
+            $('chosenBanner').hidden = true;
+          }
+
+          if (data.showAnswer) {
+            $('qaA').hidden = false;
+            $('qaA').textContent = `Answer: ${data.currentAnswer}`;
+          } else {
+            $('qaA').hidden = true;
+          }
+
+          if (data.qaMsg) {
+            $('qaMsg').hidden = false;
+            $('qaMsg').textContent = data.qaMsg;
+          } else {
+            $('qaMsg').hidden = true;
+          }
+        }
+      }
+    });
+  }
+
+  /* ---------- HOST GAME CONTROLS ---------- */
+  startBtn.addEventListener('click', () => {
+    if (!isHost || !currentRoomData) return;
+    const players = currentRoomData.players ? Object.keys(currentRoomData.players) : [];
+    if (!players.length) {
+      alert("No players have joined yet!");
+      return;
+    }
+
+    startBtn.disabled = true;
+    const winner = players[Math.floor(Math.random() * players.length)];
+    
+    // Parse Questions
+    const qLines = ($('questions').value || '').split('\n').filter(Boolean);
+    let selectedQ = '', selectedA = '';
+    if (qLines.length && $('askOpt').checked) {
+      const randomLine = qLines[Math.floor(Math.random() * qLines.length)];
+      const parts = randomLine.split('|');
+      selectedQ = parts[0] ? parts[0].trim() : '';
+      selectedA = parts[1] ? parts[1].trim() : '';
+    }
+
+    // Trigger Spin Animation state
+    let count = 0;
+    const interval = setInterval(() => {
+      const tempName = players[Math.floor(Math.random() * players.length)];
+      update(ref(db, 'rooms/' + roomId), {
+        state: 'SPINNING',
+        currentName: tempName
+      });
+      count++;
+
+      if (count > 15) {
+        clearInterval(interval);
+        // Set Final Winner
+        update(ref(db, 'rooms/' + roomId), {
+          state: 'WINNER',
+          winner: winner,
+          currentQuestion: selectedQ,
+          currentAnswer: selectedA,
+          showAnswer: false,
+          qaMsg: ''
+        });
+
+        if (selectedQ) {
+          $('qaBtns').hidden = false;
+          $('showAns').hidden = false;
+          $('markRight').hidden = true;
+          $('markWrong').hidden = true;
+        }
+
+        startBtn.disabled = false;
+      }
+    }, 150);
+  });
+
+  $('showAns').addEventListener('click', () => {
+    update(ref(db, 'rooms/' + roomId), { showAnswer: true });
+    $('showAns').hidden = true;
+    $('markRight').hidden = false;
+    $('markWrong').hidden = false;
+  });
+
+  $('markRight').addEventListener('click', () => {
+    const winner = currentRoomData.winner;
+    const currentScores = currentRoomData.scores || {};
+    const newScore = (currentScores[winner] || 0) + 1;
+
+    update(ref(db, 'rooms/' + roomId), {
+      qaMsg: `Correct! +1 point for ${winner}`,
+      [`scores/${winner}`]: newScore
+    });
+    $('qaBtns').hidden = true;
+  });
+
+  $('markWrong').addEventListener('click', () => {
+    update(ref(db, 'rooms/' + roomId), {
+      qaMsg: `Good try, ${currentRoomData.winner}!`
+    });
+    $('qaBtns').hidden = true;
+  });
+</script>
+
+<!-- CANVAS ANIMATIONS -->
+<script>
+(function(){
+  var bg = document.getElementById('bg'), H = 108, W = 192;
+  function drawBg(){
+    W = Math.max(60, Math.round(H * window.innerWidth / window.innerHeight));
+    bg.width = W; bg.height = H;
+    var x = bg.getContext('2d');
+    x.fillStyle = '#52b9ff'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#7bc23a'; x.fillRect(0, H - 30, W, 30);
+  }
+  window.addEventListener('resize', drawBg);
+  drawBg();
+})();
+</script>
+</body>
+</html>
